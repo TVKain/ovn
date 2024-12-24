@@ -1,0 +1,346 @@
+#! @PYTHON3@
+#
+# Copyright (c) 2017 eBay Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at:
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import subprocess
+import json
+import uuid
+
+import argparse
+DB_REMOTE = "unix:/usr/local/var/run/firewall/firewall_db.sock"
+
+def execute_command(command: str) -> dict: 
+    result = None
+    try:
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    except Exception as e: 
+        print(f"Error when execute command {e}")
+
+    return result
+
+def parse_output(output: str) -> str:
+    return output.replace("Output: ", "")
+
+class UUIDEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, uuid.UUID):
+            return ["uuid", str(obj)]
+        return super().default(obj)
+
+class RuleCtl: 
+    def __init__(self, remote):
+        self.remote = remote
+
+    def _print_rule(self, rule: dict):
+        try:
+            src_port = int(rule['src_port'])
+        except Exception as e: 
+            src_port = ""    
+        try:    
+            dst_port = int(rule['dst_port'])
+        except Exception as e: 
+            dst_port = ""
+
+
+        print(f'UUID: {rule["_uuid"][1]}')
+        print(f'vlan: {rule["vlan"][1]}')
+        print(f'protocol: {rule["protocol"]}') 
+        print(f'direction: {rule["direction"]}')
+        print(f'priority {rule["priority"]}')
+        print(f'src_ip: {rule["src_ip"]}')
+        print(f'dst_ip: {rule["dst_ip"]}')
+        print(f'src_port: {src_port}')
+        print(f'dst_port: {dst_port}')
+        print(f'enabled: {rule["enabled"]}')
+        print(f"action: {rule['action']}")
+
+
+    def delete_all_rule(self, args): 
+        command = [
+            "ovsdb-client", "transact", self.remote, 
+            f'[\"FIREWALL\", {{\"op\": \"delete\", \"table\": \"Rule\", \"where\": [] }}]'
+        ]
+        result = execute_command(command=command)
+
+        print(result)
+
+    def add_rule(self, args):
+
+        vlan_uuid = args.vlan_uuid 
+        protocol = args.protocol
+        action = args.action 
+        priority = args.priority 
+        direction = args.direction 
+
+        src_ip = args.src_ip
+        dst_ip = args.dst_ip
+
+        src_port = args.src_port 
+        dst_port = args.dst_port 
+
+        row = {
+            "vlan": uuid.UUID(vlan_uuid),
+            "protocol": protocol, 
+            "action": action, 
+            "priority": priority, 
+            "direction": direction, 
+            "src_ip": src_ip, 
+            "dst_ip": dst_ip, 
+            "src_port": src_port, 
+            "dst_port": dst_port
+        }
+
+        filtered_row = {k: v for k, v in row.items() if v is not None }
+
+        res = json.dumps(filtered_row, cls=UUIDEncoder)
+        res = res[1:]
+        res = res[:-1]
+
+        command = [
+            "ovsdb-client", "transact", self.remote, 
+            f'[\"FIREWALL\", {{\"op\": \"insert\", \"table\": \"Rule\", \"row\": {{ {res} }} }}]'
+        ]
+
+        result = execute_command(command)
+
+        print(result.stderr)
+
+        if not result:
+            return 
+
+        print(result.stdout)
+
+    def list_rule(self, args): 
+        command = [
+            "ovsdb-client", "query", self.remote, 
+            f'[\"FIREWALL\", {{\"op\": \"select\", \"table\": \"Rule\", \"where\": [] }}]'
+        ]
+
+        result = execute_command(command)
+
+        if not result: 
+            return 
+
+        data = json.loads(result.stdout)[0]["rows"] 
+
+        print() 
+        for rule in data:
+            self._print_rule(rule)
+            print()
+        
+
+class VlanCtl:
+    def __init__(self, remote):
+        self.remote = remote
+
+
+    def _parse_vlan(row: dict) -> dict: 
+        return {
+            "uuid": row['_uuid'][1],
+            "enable_acl": row['enable_acl'],
+            "vlan_id": row['vlan_id']
+        }
+
+    def _print_vlan(vlan: dict):
+        print(f"UUID: {vlan['uuid']}")
+        print(f"Enable acl: {vlan['enable_acl']}")
+        print(f"VLAN ID: {vlan['vlan_id']}")
+
+    def delete_all_vlan(self, args): 
+        command = [
+            "ovsdb-client", "transact", self.remote, 
+            f'[\"FIREWALL\", {{\"op\": \"delete\", \"table\": \"Vlan\", \"where\": []}}]'
+        ]
+
+        result = execute_command(command)
+
+        if not result: 
+            return  
+        
+        output = json.loads(result.stdout)
+
+        print(output)
+
+
+    def delete_vlan(self, args): 
+        vlan_id = args.vlan_id
+
+        command = [
+            "ovsdb-client", "transact", self.remote, 
+            f'[\"FIREWALL\", {{\"op\": \"delete\", \"table\": \"Vlan\", \"where\": [["vlan_id", "==", {vlan_id}]] }}]'
+        ]
+
+        result = execute_command(command)
+
+        if not result: 
+            return  
+        
+        output = json.loads(result.stdout)
+
+        print(output)
+
+
+    def list_vlan(self, args):
+        # Correctly format the command for 'ovsdb-client'
+        command = [
+            "ovsdb-client", "query", self.remote,
+            '[\"FIREWALL\", {\"op\": \"select\", \"table\": \"Vlan\", \"where\": [] }]'
+        ]
+
+        data = [] 
+
+        result = execute_command(command)
+        output = parse_output(result.stdout)
+        data = json.loads(output)[0]['rows']
+
+        print() 
+        for row in data:
+            vlan = VlanCtl._parse_vlan(row)
+            VlanCtl._print_vlan(vlan)
+            print()
+
+    def update_vlan(self, args):
+        uuid = args.uuid
+        vlan_id = args.vlan_id
+        enable_acl = "true" if args.enable_acl else "false"
+        
+        transact = f'[\"FIREWALL\", {{ \"op\": \"update\", \"table\": \"Vlan\", \"where\": [["_uuid", "==", ["uuid", "{uuid}"]]], \"row\": {{ \"vlan_id\": {vlan_id}, \"enable_acl\": {enable_acl} }} }} ]'
+        
+        if not vlan_id:
+            transact = f'[\"FIREWALL\", {{ \"op\": \"update\", \"table\": \"Vlan\", \"where\": [["_uuid", "==", ["uuid", "{uuid}"]]], \"row\": {{ \"enable_acl\": {enable_acl}}} }} ]'
+
+
+        command = [
+            "ovsdb-client", "transact", self.remote, transact
+        ]
+
+        result = execute_command(command)
+
+        print(result)
+
+        if result.stderr:
+            print(result.stderr)
+            return
+
+        if not result:
+            return 
+        output = json.loads(result.stdout) 
+
+        print(output)
+
+
+    def add_vlan(self, args):
+        vlan_id = args.vlan_id
+        enable_acl = "true" if args.enable_acl else "false"
+
+        transact = f'[\"FIREWALL\", {{ \"op\": \"insert\", \"table\": \"Vlan\", \"row\": {{ \"vlan_id\": {vlan_id}, \"enable_acl\": {enable_acl} }} }} ]'
+
+        # Correctly format the command for 'ovsdb-client'
+        command = [
+            "ovsdb-client", "transact", self.remote, transact
+        ]
+
+        result = execute_command(command)
+
+        if not result:
+            return 
+        
+        data = json.loads(result.stdout)
+        try:
+            print(data[1]["details"]) 
+        except Exception as e:
+            print(f"Insert vlan {vlan_id}, {enable_acl} success")
+            print(data)
+
+class CommandLineInterface:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(prog="prog")
+        self.subparsers = self.parser.add_subparsers(help="subcommands")
+        self.vlan_ctl = VlanCtl(remote=DB_REMOTE)
+        self.rule_ctl = RuleCtl(remote=DB_REMOTE)    
+        # Register the 'vlan' command with 'add' and 'list' subcommands
+        self._add_vlan_command()
+        
+        # Register the 'rule' command with 'list' subcommand
+        self._add_rule_command()
+
+    def _add_vlan_command(self):
+        # Create the 'vlan' subcommand
+        vlan_parser = self.subparsers.add_parser('vlan', help="VLAN command")
+        vlan_subparsers = vlan_parser.add_subparsers(help="VLAN subcommands")
+
+        # Add the 'add' subcommand under 'vlan'
+        add_parser = vlan_subparsers.add_parser('add', help="Add a VLAN")
+        add_parser.add_argument('vlan_id', type=int, help="VLAN ID to add")
+        add_parser.add_argument('--enable-acl', action='store_true', default=False, help="Enable ACL (default: False)")
+        add_parser.set_defaults(func=self.vlan_ctl.add_vlan)
+
+        # Add the 'list' subcommand under 'vlan'
+        vlan_subparsers.add_parser('list', help="List VLANs").set_defaults(func=self.vlan_ctl.list_vlan)
+
+        # Add the 'add' subcommand under 'vlan'
+        update_parser = vlan_subparsers.add_parser('update', help="Update a VLAN")
+        update_parser.add_argument('uuid', type=str, help="UUID ID of VLAN to update")
+        update_parser.add_argument('--enable-acl', action='store_true', default=False, help="Enable ACL (default: False)")
+        update_parser.add_argument('--vlan-id', type=int, help="NEW VLAN ID to update")
+        update_parser.set_defaults(func=self.vlan_ctl.update_vlan)
+
+        # Add the 'delete' subcommand under 'vlan'
+        delete_parser = vlan_subparsers.add_parser('delete', help="Delete a VLAN")
+        delete_parser.add_argument('vlan_id', type=int, help="VLAN ID to delete")
+        delete_parser.set_defaults(func=self.vlan_ctl.delete_vlan)
+
+        vlan_subparsers.add_parser('delete-all', help="Delete all VLAN").set_defaults(func=self.vlan_ctl.delete_all_vlan)
+
+    def _add_rule_command(self):
+        # Create the 'rule' subcommand
+        rule_parser = self.subparsers.add_parser('rule', help="Rule command")
+        rule_subparsers = rule_parser.add_subparsers(help="Rule subcommands")
+
+        # Add the 'list' subcommand under 'rule'
+        # rule_subparsers.add_parser('list', help="List rules").set_defaults(func=self.rule_list)
+
+        add_parser = rule_subparsers.add_parser('add', help='Add rule')
+
+        add_parser.add_argument('vlan_uuid', type=str, help="VLAN UUID this rule belongs to")
+        add_parser.add_argument('--protocol', choices=["tcp", "icmp", "udp", "any"], default="any", type=str, help="Protocol for this rule")
+        add_parser.add_argument('priority', type=int, help="Priority for this rule")
+        add_parser.add_argument('direction', type=str, choices=["ingress", "egress"], help="Direction for this rule")
+        add_parser.add_argument('--src-port', type=int, help="Source port for this rule")
+        add_parser.add_argument('--dst-port', type=int, help="Destination port for this rule")
+        add_parser.add_argument('--src-ip', type=str, help="Source IP for this rule") 
+        add_parser.add_argument('--dst-ip', type=str, help="Destination IP for this rule" )
+        add_parser.add_argument('action', choices=["allow", "deny"], type=str, help="Action for this rule")
+
+
+        add_parser.set_defaults(func=self.rule_ctl.add_rule)
+
+        # List rule 
+        rule_subparsers.add_parser('list', help='Add rule').set_defaults(func=self.rule_ctl.list_rule)
+
+        rule_subparsers.add_parser('delete-all', help='Delete all rules').set_defaults(func=self.rule_ctl.delete_all_rule)
+
+
+    def execute(self):
+        # Parse arguments and call the appropriate function
+        args = self.parser.parse_args()
+        if hasattr(args, 'func'):
+            args.func(args)
+        else:
+            print("No subcommand provided.")
+
+if __name__ == "__main__":
+    cli = CommandLineInterface()
+    cli.execute()

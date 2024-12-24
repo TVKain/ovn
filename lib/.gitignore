@@ -12,3 +12,6 @@
 /ovn-ic-sb-idl.h
 /ovn-ic-sb-idl.ovsidl
 /ovn-dirs.c
+/firewall-idl.c 
+/firewall-idl.h 
+/firewall-idl.ovsidl 

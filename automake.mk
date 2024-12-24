@@ -147,5 +147,6 @@ pkgdata_DATA += ovn-nb.ovsschema
 pkgdata_DATA += ovn-sb.ovsschema
 pkgdata_DATA += ovn-ic-nb.ovsschema
 pkgdata_DATA += ovn-ic-sb.ovsschema
+pkgdata_DATA += firewall.ovsschema
 
 CLEANFILES += ovn-sb.ovsschema.stamp

@@ -1,6 +1,7 @@
 scripts_SCRIPTS += \
     utilities/ovn-ctl \
-    utilities/ovndb-servers.ocf
+    utilities/ovndb-servers.ocf \
+    utilities/fw-ctl 
 scripts_DATA += utilities/ovn-lib
 
 man_MANS += \
@@ -21,7 +22,8 @@ MAN_ROOTS += \
 bin_SCRIPTS += \
     utilities/ovn-docker-overlay-driver \
     utilities/ovn-docker-underlay-driver \
-    utilities/ovn_detrace.py
+    utilities/ovn_detrace.py \
+    utilities/fwdb_ctl.py
 
 EXTRA_DIST += \
     utilities/ovn-ctl \
@@ -37,6 +39,7 @@ EXTRA_DIST += \
     utilities/ovn-trace.8.xml \
     utilities/ovn-debug.8.xml \
     utilities/ovn_detrace.py.in \
+    utilities/fwdb_ctl.py.in \
     utilities/ovndb-servers.ocf \
     utilities/checkpatch.py \
     utilities/containers/Makefile \
@@ -54,7 +57,8 @@ EXTRA_DIST += \
     utilities/docker/debian/build.sh \
     utilities/docker/rhel/Dockerfile \
     utilities/docker/rhel/build.sh \
-    utilities/docker/install_ovn.sh
+    utilities/docker/install_ovn.sh \
+    utilities/fw-ctl
 
 CLEANFILES += \
     utilities/ovn-ctl.8 \
@@ -72,7 +76,8 @@ CLEANFILES += \
     utilities/ovn_detrace.py \
     utilities/ovn-appctl.8 \
     utilities/ovn-appctl \
-    utilities/ovn-sim
+    utilities/ovn-sim \
+    utilities/fwdb-ctl.py
 
 EXTRA_DIST += utilities/ovn-sim.in
 noinst_SCRIPTS += utilities/ovn-sim
@@ -124,9 +129,20 @@ UNINSTALL_LOCAL += ovn-detrace-uninstall
 ovn-detrace-uninstall:
 	rm -f $(DESTDIR)$(bindir)/ovn-detrace
 
+# fwdb-ctl 
+INSTALL_DATA_LOCAL += fwdb-ctl-install
+fwdb-ctl-install:
+	ln -sf fwdb_ctl.py $(DESTDIR)$(bindir)/fwdb-ctl
+
+UNINSTALL_LOCAL += fwdb-ctl-uninstall
+fwdb-ctl-uninstall:
+	rm -f $(DESTDIR)$(bindir)/fwdb-ctl
+
+
 # ovn-debug
 bin_PROGRAMS += utilities/ovn-debug
 utilities_ovn_debug_SOURCES = utilities/ovn-debug.c
 utilities_ovn_debug_LDADD = lib/libovn.la $(OVSDB_LIBDIR)/libovsdb.la $(OVS_LIBDIR)/libopenvswitch.la
+
 
 include utilities/bugtool/automake.mk

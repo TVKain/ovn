@@ -603,6 +603,20 @@ When using ovn in container, exec to container to run above commands::
 
     $ docker exec -it <ovn-nb/ovn-sb/ovn-northd/ovn-controller> /bin/bash
 
+Starting Firewall 
+~~~~~~~~~~~~~~~~~~~~
+
+Configure the database: 
+
+    ovsdb-tool create /usr/local/etc/firewall/firewall.db firewall.ovsschema
+    sudo mkdir -p /usr/local/var/run/firewall
+    sudo mkdir -p /usr/local/var/log/firewall
+
+    ovsdb-server /usr/local/etc/firewall/firewall_db.db --detach --pidfile=/usr/local/var/run/firewall/firewall_db.pid --unixctl=/usr/local/var/run/firewall/firewall_db.ctl --log-file=/usr/local/var/log/firewall/firewall_db.log --remote=punix:/usr/local/var/run/firewall/firewall_db.sock --remote=db:FIREWALL,Config,connections 
+
+    ovsdb-client -v transact unix:/usr/local/var/run/firewall/firewall.sock \
+'["FIREWALL", {"op": "insert", "table": "Connection", "row": {"target": "ptcp:6643:0.0.0.0", "inactivity_probe": 60000}}]'
+
 Reporting Bugs
 --------------
 

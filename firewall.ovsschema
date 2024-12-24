@@ -1,0 +1,136 @@
+
+{
+    "name": "FIREWALL",
+    "version": "1.0.0",
+    "cksum": "3964083684 3501",
+    "tables": {
+        "Config": {
+            "columns": {
+                "connections": {
+                    "type": {
+                        "key": {
+                            "type": "uuid", 
+                            "refTable": "Connection"
+                        },
+                            "min": 0, 
+                            "max": "unlimited"
+                    }
+                }
+            }
+        },
+        "Vlan": {
+            "columns": {
+                "vlan_id": {"type": "integer"},
+                "enable_acl": {"type": "boolean"}, 
+                "external_ids": {
+                    "type": {
+                        "key": "string", 
+                        "value": "string",
+                        "min": 0, 
+                        "max": "unlimited"
+                    }         
+                }
+            },
+            "indexes": [["vlan_id"]]
+        }, 
+        "Rule": {
+            "columns": {
+                "vlan": {
+                    "type": {
+                        "key": {
+                            "type": "uuid", "refTable": "Vlan", "refType": "strong"
+                        }
+                    }
+                },
+                "external_ids": {
+                    "type": {
+                        "key": "string",
+                        "value": "string",
+                        "min": 0, 
+                        "max": "unlimited"
+                    }
+                },
+                "priority": {
+                    "type": {
+                        "key": {
+                            "type": "integer", 
+                            "minInteger": 1,
+                            "maxInteger": 32767
+                        }
+                    }
+                },
+                "enabled": {"type": {"key": "boolean", "min": 0, "max": 1}},
+                "protocol": {
+                    "type": {
+                        "key": {
+                            "type": "string",
+                            "enum": ["set", ["tcp", "udp", "icmp", "any" ]]
+                        }
+                    }
+                },
+                "src_port": {
+                    "type": {
+                        "key": {
+                            "type": "integer",
+                            "minInteger": 1,
+                            "maxInteger": 65535
+                        },
+                        "min": 0, 
+                        "max": 1
+                    }
+                },
+                "dst_port": {
+                    "type": {
+                        "key": {
+                            "type": "integer",
+                            "minInteger": 1,
+                            "maxInteger": 65535
+                        },
+                        "min": 0, 
+                        "max": 1
+                    }
+                },
+                "src_ip": {"type": "string"},
+                "dst_ip": {"type": "string"},
+                "direction": {
+                    "type": {
+                        "key": {"type": "string",
+                        "enum": ["set", ["egress", "ingress"]]},
+                        "min": 0, "max": 1
+                    }
+                },
+                "action": {
+                    "type": {"key": {"type": "string",
+                             "enum": ["set", ["allow", "deny"]]},
+                             "min": 0, "max": 1}}
+            }
+        },
+        "Connection": {
+            "columns": {
+                "target": {"type": "string"},
+                "max_backoff": {"type": {"key": {"type": "integer",
+                                         "minInteger": 1000},
+                                         "min": 0,
+                                         "max": 1}},
+                "inactivity_probe": {"type": {"key": "integer",
+                                              "min": 0,
+                                              "max": 1}},
+                "read_only": {"type": "boolean"},
+                "role": {"type": "string"},
+                "other_config": {"type": {"key": "string",
+                                          "value": "string",
+                                          "min": 0,
+                                          "max": "unlimited"}},
+                "external_ids": {"type": {"key": "string",
+                                 "value": "string",
+                                 "min": 0,
+                                 "max": "unlimited"}},
+                "is_connected": {"type": "boolean", "ephemeral": true},
+                "status": {"type": {"key": "string",
+                                    "value": "string",
+                                    "min": 0,
+                                    "max": "unlimited"},
+                                    "ephemeral": true}},
+            "indexes": [["target"]]}
+    }
+}

@@ -19,3 +19,4 @@
 /ovn-docker-underlay-driver
 /ovn-lib
 /ovn-sim
+/fwdb_ctl.py

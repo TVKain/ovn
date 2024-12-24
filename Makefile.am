@@ -117,7 +117,8 @@ EXTRA_DIST = \
 	ovn-ic-nb.ovsschema \
 	ovn-ic-nb.xml \
 	ovn-ic-sb.ovsschema \
-	ovn-ic-sb.xml
+	ovn-ic-sb.xml \ 
+	firewall.ovsschema 
 bin_PROGRAMS =
 sbin_PROGRAMS =
 bin_SCRIPTS =
@@ -500,3 +501,4 @@ include controller-vtep/automake.mk
 include northd/automake.mk
 include ic/automake.mk
 include build-aux/automake.mk
+include firewall/automake.mk

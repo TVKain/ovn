@@ -69,3 +69,4 @@
 /testsuite.tmp.orig
 /valgrind.[0-9]*
 /valgrind/
+/multinode-testsuite

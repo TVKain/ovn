@@ -59,7 +59,9 @@ nodist_lib_libovn_la_SOURCES = \
 	lib/ovn-ic-nb-idl.c \
 	lib/ovn-ic-nb-idl.h \
 	lib/ovn-ic-sb-idl.c \
-	lib/ovn-ic-sb-idl.h
+	lib/ovn-ic-sb-idl.h \
+	lib/firewall-idl.c \
+	lib/firewall-idl.h 
 
 CLEANFILES += $(nodist_lib_libovn_la_SOURCES)
 
@@ -128,4 +130,17 @@ OVN_IC_SB_IDL_FILES = \
 	$(srcdir)/lib/ovn-ic-sb-idl.ann
 lib/ovn-ic-sb-idl.ovsidl: $(OVN_IC_SB_IDL_FILES)
 	$(AM_V_GEN)$(OVSDB_IDLC) annotate $(OVN_IC_SB_IDL_FILES) > $@.tmp && \
+	mv $@.tmp $@
+
+
+# firewall IDL 
+OVSIDL_BUILT += \
+	lib/firewall-idl.c \
+	lib/firewall-idl.h 
+EXTRA_DIST += lib/firewall-idl.ann
+FIREWALL_IDL_FILES = \
+	$(srcdir)/firewall.ovsschema \
+	$(srcdir)/lib/firewall-idl.ann
+lib/firewall-idl.ovsidl: $(FIREWALL_IDL_FILES)
+	$(AM_V_GEN)$(OVSDB_IDLC) annotate $(FIREWALL_IDL_FILES) > $@.tmp && \
 	mv $@.tmp $@

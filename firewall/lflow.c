@@ -98,11 +98,25 @@ static void put_resubmit(uint8_t table_id, struct ofpbuf *ofpacts)
 /* Translate the database rule -> OpenFlow rules -> Insert in the desired flow table */
 void lflow_run(const struct ovsdb_idl *fw_idl, struct hmap *flow_table)
 {
+
+    struct match arp_match;
+    struct ofpbuf arp_ofpacts;
+    match_init_catchall(&arp_match);
+    ofpbuf_init(&arp_ofpacts, 1);
+
+    /* Table 1, Priority 65535 flow to allow ARP packets */
+    match_init_catchall(&arp_match);
+    ofpbuf_clear(&arp_ofpacts);
+    match_set_dl_type(&arp_match, htons(ETH_TYPE_ARP));
+    put_resubmit(OFTABLE_LOG_TO_PHY, &arp_ofpacts);
+    ofctrl_add_flow(flow_table, OFTABLE_ACL_PIPELINE, ACL_ARP_PRIORITY, &arp_match, &arp_ofpacts);
+
+    ofpbuf_uninit(&arp_ofpacts);
+
     const struct firewall_vlan *vlan;
 
     FIREWALL_VLAN_FOR_EACH(vlan, fw_idl)
     {
-
         /* Table 1, Priority 100.
          * =========================================================================
          *
@@ -168,13 +182,6 @@ void lflow_run(const struct ovsdb_idl *fw_idl, struct hmap *flow_table)
             put_resubmit(OFTABLE_LOG_TO_PHY, &ofpacts);
 
             ofctrl_add_flow(flow_table, OFTABLE_ACL_PIPELINE, ACL_BASE_PRIORITY, &match, &ofpacts);
-
-            /* 1 Priority 65535 flow to allow ARP packets */
-            match_init_catchall(&match);
-            ofpbuf_clear(&ofpacts);
-            match_set_dl_type(&match, htons(ETH_TYPE_ARP));
-            put_resubmit(OFTABLE_LOG_TO_PHY, &ofpacts);
-            ofctrl_add_flow(flow_table, OFTABLE_ACL_PIPELINE, ACL_ARP_PRIORITY, &match, &ofpacts);
 
             /* 3 Priority 65534 flows to match with private IP packets for each vlan */
             const char *cidr_blocks[] = {

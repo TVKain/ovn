@@ -16,9 +16,6 @@ PID_FILE="/usr/local/var/run/firewall/firewall-controller.pid"
 
 DB_FILE="/usr/local/var/run/firewall/firewall_db.pid"
 
-start_db() {
-
-}
 
 start_controller() {
     # Check for /usr/local/var/run/firewall/firewall-controller.pid 
@@ -46,7 +43,7 @@ stop_controller() {
 
     # Kill the process using the PID and remove the PID file
     PID=$(cat "$PID_FILE")
-    if kill "$PID" &>/dev/null; then
+    if kill -9 "$PID" &>/dev/null; then
         echo "Firewall controller (PID $PID) stopped."
         rm -f "$PID_FILE"
     else

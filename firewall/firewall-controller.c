@@ -89,9 +89,7 @@ static void update_fw_db(struct ovsdb_idl *ovs_idl, struct ovsdb_idl *fw_idl)
         get_chassis_external_id_value_int(
             &cfg->external_ids, chassis_id, "fw-remote-probe-interval", -1);
 
-    VLOG_INFO("interval: %d", interval);
-
-    set_idl_probe_interval(fw_idl, remote, 0);
+    set_idl_probe_interval(fw_idl, remote, interval);
 }
 
 /* CLIs related functions */
@@ -169,8 +167,6 @@ int main(int argc, char *argv[])
 
     daemonize_complete();
 
-    VLOG_INFO("Daemonize complute");
-
     /* Connect to local OVS OVSDB instance */
     struct ovsdb_idl_loop ovs_idl_loop = OVSDB_IDL_LOOP_INITIALIZER(
         ovsdb_idl_create(ovs_remote, &ovsrec_idl_class, false, true));
@@ -200,12 +196,8 @@ int main(int argc, char *argv[])
     unsigned int ovs_cond_seqno = UINT_MAX;
     unsigned int fw_cond_seqno = UINT_MAX;
 
-    unsigned int i = 0;
     while (!exiting)
     {
-        VLOG_INFO("Iteration %u", i);
-        ++i;
-
         /* Run the ovsdb idl loop to get the transaction for the local ovsdb */
         struct ovsdb_idl_txn *ovs_idl_txn = ovsdb_idl_loop_run(&ovs_idl_loop);
         unsigned int new_ovs_cond_seqno = ovsdb_idl_get_condition_seqno(ovs_idl_loop.idl);
@@ -221,7 +213,7 @@ int main(int argc, char *argv[])
 
         update_fw_db(ovs_idl_loop.idl, fw_idl_loop.idl);
 
-        struct ovsdb_idl_txn *fw_idl_txn = ovsdb_idl_loop_run(&fw_idl_loop);
+        struct ovsdb_idl_txn *fw_idl_txn OVS_UNUSED = ovsdb_idl_loop_run(&fw_idl_loop);
         unsigned int new_fw_cond_seqno = ovsdb_idl_get_condition_seqno(fw_idl_loop.idl);
 
         if (new_fw_cond_seqno != fw_cond_seqno)
@@ -232,9 +224,6 @@ int main(int argc, char *argv[])
             }
             fw_cond_seqno = new_fw_cond_seqno;
         }
-
-        /* Test */
-        // ovsdb-client -v transact '["Open_vSwitch", {"op" : "select", "table" : "Interface", "where": [["admin_state", "!=", "down"], ["mtu", "==", 1500]], "columns": ["_uuid"]}]'
 
         /* Bridge processing */
         const struct ovsrec_bridge_table *bridge_table =
@@ -254,9 +243,6 @@ int main(int argc, char *argv[])
         {
             struct hmap flow_table = HMAP_INITIALIZER(&flow_table);
 
-            const struct firewall_vlan_table *vlan_table =
-                firewall_vlan_table_get(fw_idl_loop.idl);
-
             ofctrl_run(br_f, ovs_table);
             physical_run(br_f, &flow_table);
             lflow_run(fw_idl_loop.idl, &flow_table);
@@ -268,7 +254,7 @@ int main(int argc, char *argv[])
 
         if (!ovsdb_idl_loop_commit_and_wait(&fw_idl_loop))
         {
-            VLOG_INFO("FW DB commit failed");
+            VLOG_WARN("FW DB commit failed");
         }
 
         /* Commit and wait local db */
@@ -278,12 +264,11 @@ int main(int argc, char *argv[])
         if (!ovs_txn_status)
         {
             /* Failed transaction */
-            VLOG_INFO("Transaction failed");
+            VLOG_WARN("Transaction failed");
         }
         else if (ovs_txn_status == 1)
         {
             /* Success transaction */
-            VLOG_INFO("Transaction success");
         }
         else if (ovs_txn_status == -1)
         {
@@ -609,16 +594,20 @@ parse_options(int argc, char *argv[])
         {
         case 'h':
             usage();
+            break;
         case 'V':
             ovs_print_version(OFP15_VERSION, OFP15_VERSION);
             exit(EXIT_SUCCESS);
 
             OVN_DAEMON_OPTION_HANDLERS
             VLOG_OPTION_HANDLERS
+            break;
         case '?':
             exit(EXIT_FAILURE);
+            break;
         default:
             abort();
+            break;
         }
     }
     free(short_options);

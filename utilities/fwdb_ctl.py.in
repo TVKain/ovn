@@ -99,7 +99,7 @@ class RuleCtl:
             "src_ip": src_ip, 
             "dst_ip": dst_ip, 
             "src_port": src_port, 
-            "dst_port": dst_port
+            "dst_port": dst_port,
         }
 
         filtered_row = {k: v for k, v in row.items() if v is not None }
@@ -110,7 +110,7 @@ class RuleCtl:
 
         command = [
             "ovsdb-client", "transact", self.remote, 
-            f'[\"FIREWALL\", {{\"op\": \"insert\", \"table\": \"Rule\", \"row\": {{ {res} }} }}]'
+            f'[\"FIREWALL\", {{\"op\": \"insert\", \"table\": \"Rule\", \"row\": {{ {res}, "enabled": true }} }}]'
         ]
 
         result = execute_command(command)
@@ -323,6 +323,7 @@ class CommandLineInterface:
         add_parser.add_argument('--src-ip', type=str, help="Source IP for this rule") 
         add_parser.add_argument('--dst-ip', type=str, help="Destination IP for this rule" )
         add_parser.add_argument('action', choices=["allow", "deny"], type=str, help="Action for this rule")
+        add_parser.add_argument('--enabled', help="Enabled or not", default=False, action='store_true' )
 
 
         add_parser.set_defaults(func=self.rule_ctl.add_rule)

@@ -11,9 +11,9 @@
 #include "openvswitch/ofp-flow.h"
 #include "openvswitch/ofp-print.h" /* ofp_to_string */
 
-#include "ovs/lib/socket-util.h" /* DSCP_DEFAULT */
-#include "ovs/lib/dirs.h"        /* ovs_rundir */
-#include "ovs/lib/util.h"        /* xasprintf */
+#include "socket-util.h" /* DSCP_DEFAULT */
+#include "dirs.h"        /* ovs_rundir */
+#include "util.h"        /* xasprintf */
 
 #include "openvswitch/hmap.h"
 #include "openvswitch/rconn.h"          /* swconn */
@@ -89,7 +89,7 @@ enum ofctrl_state
 static enum ofctrl_state state;
 
 /* Transaction IDs for messages in flight to the switch */
-static ovs_be32 xid, xid2;
+static ovs_be32 xid OVS_UNUSED, xid2 OVS_UNUSED;
 
 /* Counter for in-flight OpenFlow messages on 'swconn'.  We only send a new
  * round of flow table modifications to the switch when the counter falls to
@@ -177,7 +177,7 @@ recv_S_UPDATE_FLOWS(const struct ofp_header *oh, enum ofptype type)
  *
  * Returns 'true' if an OpenFlow reconnect happened; 'false' otherwise.
  */
-bool ofctrl_run(const struct ovsrec_bridge *br_f, const struct ovsrec_open_vswitch_table *ovs_table)
+bool ofctrl_run(const struct ovsrec_bridge *br_f, const struct ovsrec_open_vswitch_table *ovs_table OVS_UNUSED)
 {
     bool reconnected = false;
 
@@ -308,7 +308,6 @@ ofctrl_recv(const struct ofp_header *oh, enum ofptype type)
     if (type == OFPTYPE_ECHO_REQUEST)
     {
         queue_msg(ofputil_encode_echo_reply(oh));
-        VLOG_INFO("Got echo request");
     }
     else if (type == OFPTYPE_ERROR)
     {
@@ -540,49 +539,6 @@ void ofctrl_put(struct hmap *flow_table)
         hmap_remove(flow_table, &d->hmap_node);
         hmap_insert(&installed_flows, &d->hmap_node, d->hmap_node.hash);
     }
-}
-
-/* Desired Flow table related functions */
-// void fw_desired_flow_table_init(struct hmap *flow_table)
-// {
-//     hmap_init(&flow_table->match_flow_table);
-// }
-//
-// void fw_desired_flow_table_clear(struct hmap *flow_table)
-// {
-//     struct fw_flow *f, *next;
-//     HMAP_FOR_EACH_SAFE(f, next, hmap_node, flow_table)
-//     {
-//         hmap_remove(flow_table, &f->hmap_node);
-//         fw_flow_destroy(f);
-//     }
-//
-//     hmap_clear(&flow_table->match_flow_table);
-// }
-//
-// void fw_desired_flow_table_destroy(struct hmap *flow_table)
-// {
-//     fw_desired_flow_table_clear(flow_table);
-//     hmap_destroy(&flow_table->match_flow_table);
-// }
-//
-void ofctrl_dump_flow_table(struct hmap *flow_table)
-{
-    struct fw_flow *flow;
-    struct fw_flow *next;
-
-    VLOG_INFO("The current flow table");
-
-    HMAP_FOR_EACH(flow, hmap_node, flow_table)
-    {
-        char *flow_string = fw_flow_to_string(flow);
-
-        VLOG_INFO(flow_string);
-
-        free(flow_string);
-    }
-
-    VLOG_INFO("End of the flow table");
 }
 
 void ofctrl_destroy_hmap(struct hmap *flow_table)
